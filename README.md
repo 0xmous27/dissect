@@ -32,7 +32,7 @@ Paste a YouTube HTB walkthrough URL → get a complete writeup with:
 git clone https://github.com/0xmous27/dissect.git
 cd dissect
 pip install -r requirements.txt
-sudo ln -sf $(pwd)/dissect /usr/local/bin/dissect
+sudo ln -sf $(pwd)/dissect.py /usr/local/bin/dissect
 ```
 
 ## Setup
@@ -82,6 +82,10 @@ dissect --list -o ./reports/
 | `--list` | List generated writeups in output dir |
 | `--api-key` | Set Gemini API key (saved for future use) |
 | `-h`, `--help` | Show help |
+
+## Sample Output
+
+Check [`samples/Outbound.html`](samples/Outbound.html) — generated from [this video](https://youtu.be/bDql3eTHgZ8).
 
 ## Requirements
 
