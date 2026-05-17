@@ -2,9 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python) ![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-AI-orange?logo=google) ![License](https://img.shields.io/badge/License-MIT-green)
 
-Auto-generate detailed HTB machine writeups from YouTube walkthrough videos.
-
-Paste a YouTube URL → get a full pentest writeup with exact commands, reasoning, techniques, and attack flow.
+Auto-generate detailed HTB machine writeups from YouTube walkthrough videos using AI.
 
 ```
   ╔══════════════════════════════════════════╗
@@ -18,19 +16,17 @@ Paste a YouTube URL → get a full pentest writeup with exact commands, reasonin
   ╚══════════════════════════════════════════╝
 ```
 
-## Features
+## What It Does
 
-- ⚡ **Auto-extract** — Fetches transcript from any YouTube HTB walkthrough
-- 📝 **Deep writeups** — Why boxes, Concept boxes, exact commands with output, attack timeline
-- 🎯 **Techniques** — Every technique named, explained, and contextualized
-- 📂 **Save anywhere** — Specify output directory
-- 📄 **PDF support** — Export as PDF with `--format pdf`
-- 🎬 **Playlist mode** — Process entire YouTube playlists in batch
-- 🌐 **Auto-open** — Open writeup in browser after generation
-- 📋 **List reports** — View all generated writeups
-- 🔐 **API key management** — Set once, saved locally
+Paste a YouTube HTB walkthrough URL → get a complete writeup with:
+- Exact commands and their output
+- **Why** boxes explaining attacker reasoning
+- **Concept** boxes explaining techniques and tools
+- **What This Tells Us** analysis for every output
+- Attack path visualization
+- Timeline and summary of lessons learned
 
-## Installation
+## Install
 
 ```bash
 git clone https://github.com/0xmous27/dissect.git
@@ -39,94 +35,59 @@ pip install youtube-transcript-api google-generativeai
 sudo ln -sf $(pwd)/cli/dissect /usr/local/bin/dissect
 ```
 
-## Quick Start
+## Setup
+
+Get a free Gemini API key at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) (no credit card needed), then:
 
 ```bash
-# Set your Gemini API key (free, one time)
 dissect --api-key YOUR_KEY_HERE
-
-# Generate a writeup
-dissect https://youtu.be/zOK_EzOyMN0
-
-# With options
-dissect -u https://youtu.be/zOK_EzOyMN0 -o ./reports/ --open
 ```
 
-> 🆓 **No API key?** Get one free at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) — 500 requests/day, no credit card.
+Key is saved locally at `~/.config/dissect/config.json`. You only need to do this once.
 
 ## Usage
 
+```bash
+# Generate writeup (saves as MachineName.html)
+dissect https://youtu.be/zOK_EzOyMN0
+
+# Using -u flag
+dissect -u https://youtu.be/zOK_EzOyMN0
+
+# Save to specific folder
+dissect -u https://youtu.be/zOK_EzOyMN0 -o ./reports/
+
+# Export as PDF
+dissect -u https://youtu.be/zOK_EzOyMN0 -f pdf
+
+# Open in browser after generating
+dissect -u https://youtu.be/zOK_EzOyMN0 --open
+
+# Process entire YouTube playlist
+dissect -u "https://youtube.com/playlist?list=PLid..." --playlist -o ./reports/
+
+# List all generated writeups in a folder
+dissect --list -o ./reports/
 ```
-dissect [-h] [-u URL] [-o OUTPUT] [-f {html,pdf}] [--open] [--playlist] [--list] [--api-key KEY]
-```
+
+## Flags
 
 | Flag | Description |
 |------|-------------|
 | `-u`, `--youtube` | YouTube video URL |
 | `-o`, `--output` | Output directory (default: current) |
-| `-f`, `--format` | Output format: `html` (default) or `pdf` |
-| `--open` | Open writeup in browser after generation |
-| `--playlist` | Process all videos in a YouTube playlist |
-| `--list` | List previously generated writeups |
-| `--api-key` | Set/save Gemini API key |
+| `-f`, `--format` | `html` (default) or `pdf` |
+| `--open` | Open in browser after generation |
+| `--playlist` | Process all videos in a playlist |
+| `--list` | List generated writeups in output dir |
+| `--api-key` | Set Gemini API key (saved for future use) |
 | `-h`, `--help` | Show help |
-
-## Examples
-
-```bash
-# Single video
-dissect https://youtu.be/zOK_EzOyMN0
-
-# Save to reports folder as PDF
-dissect -u https://youtu.be/zOK_EzOyMN0 -o ./reports/ -f pdf
-
-# Process entire playlist
-dissect -u "https://youtube.com/playlist?list=PLidcsTyj..." --playlist -o ./reports/
-
-# List all generated writeups
-dissect --list -o ./reports/
-
-# Open in browser after generating
-dissect -u https://youtu.be/zOK_EzOyMN0 --open
-```
-
-## How It Works
-
-```
-YouTube URL
-    │
-    ▼
-Fetch Transcript (youtube-transcript-api)
-    │
-    ▼
-AI Analysis (Gemini 2.5 Flash)
-    │
-    ▼
-Rich HTML Writeup
-├── Sidebar navigation
-├── Why boxes (attacker reasoning)
-├── Concept boxes (technique explanations)
-├── Exact commands + output
-├── Attack path visualization
-└── Timeline + summary
-```
-
-## Output Example
-
-The generated writeup includes:
-- **Machine info** — Name, OS, difficulty
-- **Attack path** — Visual chain of steps
-- **Step-by-step** — Every command with flags explained
-- **Why boxes** — Why each step is taken
-- **Concept boxes** — What each tool/technique is
-- **What This Tells Us** — Analysis of every output
-- **Summary** — Lessons learned + attack timeline
 
 ## Requirements
 
 - Python 3.10+
 - Free Gemini API key
-- `weasyprint` (optional, for PDF export)
+- `weasyprint` (optional, only needed for `--format pdf`)
 
 ## License
 
