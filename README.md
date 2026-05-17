@@ -34,9 +34,9 @@ Paste a YouTube URL → get a full pentest writeup with exact commands, reasonin
 
 ```bash
 git clone https://github.com/0xmous27/dissect.git
-cd dissect/cli
+cd dissect
 pip install youtube-transcript-api google-generativeai
-sudo ln -sf $(pwd)/dissect /usr/local/bin/dissect
+sudo ln -sf $(pwd)/cli/dissect /usr/local/bin/dissect
 ```
 
 ## Quick Start
@@ -121,20 +121,6 @@ The generated writeup includes:
 - **Concept boxes** — What each tool/technique is
 - **What This Tells Us** — Analysis of every output
 - **Summary** — Lessons learned + attack timeline
-
-## Web UI
-
-A web interface is also included in the `frontend/` and `backend/` directories:
-
-```bash
-# Terminal 1
-cd backend && pip install -r requirements.txt && uvicorn main:app --port 8000
-
-# Terminal 2
-cd frontend && npm install && npm run dev
-```
-
-Open http://localhost:5173
 
 ## Requirements
 
