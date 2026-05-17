@@ -31,8 +31,8 @@ Paste a YouTube HTB walkthrough URL → get a complete writeup with:
 ```bash
 git clone https://github.com/0xmous27/dissect.git
 cd dissect
-pip install youtube-transcript-api google-generativeai
-sudo ln -sf $(pwd)/cli/dissect /usr/local/bin/dissect
+pip install -r requirements.txt
+sudo ln -sf $(pwd)/dissect /usr/local/bin/dissect
 ```
 
 ## Setup
